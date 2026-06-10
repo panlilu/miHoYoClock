@@ -110,6 +110,13 @@
   #define CSSR_LATCH_PIN (17)
 #endif
 
+#ifdef HARDWARE_MIHOYO_CLOCK  // miHoYo Anniversary Glow-Tube Stand
+  #define BACKLIGHTS_PIN (5)
+  #define DS1302_SCLK  (22)
+  #define DS1302_IO    (19)
+  #define DS1302_CE    (21)
+#endif
+
 #ifdef HARDWARE_Elekstube_CLOCK_V2  //  EleksTube IPS clock V2 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 // Please note that the V2 hardware is locked. You can't install new firmware short of replacing the ESP32 Pico with a new one
   // WS2812 (or compatible) LEDs on the back of the display modules.

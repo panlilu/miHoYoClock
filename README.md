@@ -1,59 +1,86 @@
-# A Custom Firmware for the EleksTube IPS V1 clock
+# miHoYoClock — 米哈游辉光管立牌兼容固件
 
-## Features of This Firmware
+Fork 自 [EleksTubeIPS](https://github.com/judge2005/EleksTubeIPS)。为 miHoYo 2024 年周年庆礼品「拟辉光管立牌」适配的开源固件。
 
-This firmware uses the WiFi support that your clock already has to sync the time with the internet and to provide an easy way to configure the clock and change the display:
+## 硬件信息
 
-* It can display the time, the date or a weather forecast.
-* It synchronizes the time with NTP so it is very accurate.
-* It automatically handles timezone and DST conversions.
-* All clock configurarion is done using a web interface.
-  * Set the timezone information
-  * Set the hours the clock is on
-  * Switch between a six digit clock showing seconds and a four digit AM/PM display
-  * Enable/disable leading zeros
-  * Switch the display between time, date and the weather
-  * Set the date format
-  * Set the backlight effects and colors
-  * Upload, delete and select the images used for the clock display
-  * Configure the weather forecast
-  * Upload, delete and select the icons used for the weather display
-* Clock faces and weather icons can be selected using the buttons.
-* You can switch between time, date and weather using the buttons.
-* It has a screen saver.
-* There is also a tool to convert images in to a format that can be displayed on the clock
-* It can connect to a MQTT broker, primarily to allow use of movement and luminance sensors and setting a custom display value. The full state of the clock is published too. See the [User Guide](https://github.com/judge2005/EleksTubeIPS/wiki/User-Guide#mqtthome-assistant) for details.
-* There are specific variants for:
-  * The [EleksTube v1 clock](https://www.nixies.us/projects/elekstubeips-clock/elekstube-ips-v1/)
-  * The [Si Hai](https://www.nixies.us/projects/elekstubeips-clock/elekstube-ips-v1-3/) clock
-  * The [NovelLife SE](https://www.nixies.us/projects/elekstubeips-clock/elekstube-ips-v1-2/) clock
-  * The [PCBWay 'Punkcyber'](https://www.nixies.us/projects/elekstubeips-clock/elekstube-ips-v1-4/) clock
-  * The [IPSTube](https://www.nixies.us/projects/elekstubeips-clock/elekstube-ips-v1-2-2/) clock
+| 项目 | 规格 |
+|------|------|
+| 主控 | ESP32-D0WDR2-V3 |
+| Flash | 8MB |
+| PSRAM | 2MB |
+| 显示屏 | 6 × ST7789 135×240 IPS |
+| FPC 引脚 | MOSI=GPIO32, SCLK=GPIO33, DC=GPIO25, RST=GPIO26 |
+| CS 引脚 | GPIO15, GPIO2, GPIO27, GPIO14, GPIO12, GPIO13 |
+| LED | WS2812 (GPIO5) |
+| RTC | DS1302 |
 
-This image shows the clock running in 4 digit mode with weather forecast
+## 编译 & 烧录
 
-![Captive Portal](docs/original.jpg)
+```bash
+# 安装 PlatformIO
+pip install platformio
 
-This shows a weather forecast using colored icons:
+# 编译
+pio run -e mihoyo
 
-![Captive Portal](docs/weather_display.jpg)
+# 构建文件系统
+pio run -e mihoyo -t buildfs
 
-This shows the digital rain screen saver:
+# 烧录（进入下载模式：按住 SW1 → 插 USB → 松 SW1）
+esptool.py --port /dev/cu.usbserial-xxx write_flash \
+  0x1000 .pio/build/mihoyo/bootloader.bin \
+  0x8000 .pio/build/mihoyo/partitions.bin \
+  0x10000 .pio/build/mihoyo/firmware.bin \
+  0x180000 .pio/build/mihoyo/littlefs.bin
+```
 
-![Captive Portal](docs/matrix.jpg)
+## 启动后
 
-## Documentation
+设备会创建 WiFi 热点 **EleksTubeIPS**，密码 `secretsauce`。连上后浏览器打开 `http://192.168.4.1` 配置 WiFi，之后即可通过 Web 界面或 WebSocket (`ws://<ip>/ws`) 控制。
 
-See [the wiki](https://github.com/judge2005/EleksTubeIPS/wiki "wiki") for detailed information on how to build, install and use this firmware.
+## License
 
-* [Installation](https://github.com/judge2005/EleksTubeIPS/wiki/Installation) takes you through backing up the original firmware, building the custom firmware and uploading it to the clock
-* [Connecting to WiFi](https://github.com/judge2005/EleksTubeIPS/wiki/Connecting-to-WiFi) takes you through getting your clock connected to your router so it can sync the time with NTP and you can configure it using a web browser.
-* [User Guide](https://github.com/judge2005/EleksTubeIPS/wiki/User-Guide) shows you how to configure and control your clock.
-* [Image Collections](https://github.com/judge2005/EleksTubeIPS/wiki/Image-Collections) tells you how to prepare new clock faces and weather icon sets so that they can be uploaded to the clock and used.
-* [Hardware Modification](https://github.com/judge2005/EleksTubeIPS/wiki/Hardware-Modification) details a mod that you might want to make to your clock, but only if you are comfortable wielding a soldering iron.
+GPL v3，继承自 EleksTubeIPS。
 
-## Credits
+---
 
-[Original documentation and software from EleksMaker.](https://wiki.eleksmaker.com/doku.php?id=ips)
+# miHoYoClock — Custom Firmware for miHoYo Glow-Tube Stand
 
-This code wouldn't exist without the work done by the people on [this reddit discussion](https://www.reddit.com/r/arduino/comments/mq5td9/hacking_the_elekstube_ips_clock_anyone_tried_it/).
+Forked from [EleksTubeIPS](https://github.com/judge2005/EleksTubeIPS). Open-source firmware adapted for the miHoYo 2024 anniversary "nixie-tube-style" display stand.
+
+## Hardware
+
+| Item | Spec |
+|------|------|
+| MCU | ESP32-D0WDR2-V3 |
+| Flash | 8MB |
+| PSRAM | 2MB |
+| Display | 6 × ST7789 135×240 IPS |
+| FPC Pins | MOSI=GPIO32, SCLK=GPIO33, DC=GPIO25, RST=GPIO26 |
+| CS Pins | GPIO15, GPIO2, GPIO27, GPIO14, GPIO12, GPIO13 |
+| LED | WS2812 (GPIO5) |
+| RTC | DS1302 |
+
+## Build & Flash
+
+```bash
+pip install platformio
+pio run -e mihoyo
+pio run -e mihoyo -t buildfs
+
+# Enter download mode: hold SW1 → plug USB → release SW1
+esptool.py --port /dev/cu.usbserial-xxx write_flash \
+  0x1000 .pio/build/mihoyo/bootloader.bin \
+  0x8000 .pio/build/mihoyo/partitions.bin \
+  0x10000 .pio/build/mihoyo/firmware.bin \
+  0x180000 .pio/build/mihoyo/littlefs.bin
+```
+
+## First Boot
+
+The device creates a WiFi AP named **EleksTubeIPS** (password: `secretsauce`). Connect and open `http://192.168.4.1` to configure WiFi. After connecting, use the web UI or WebSocket (`ws://<ip>/ws`) for control.
+
+## License
+
+GPL v3, inherited from EleksTubeIPS.

@@ -445,6 +445,7 @@ void TFTs::begin(fs::FS& fs) {
   // Start with all displays selected.
   chip_select.begin();
   chip_select.setAll();
+  TFT_eSPI::begin();  // Full ST7789 init (like minimal test)
   writecommand(1);
 
   // Initialize the super class.
@@ -463,6 +464,13 @@ void TFTs::begin(fs::FS& fs) {
   TFT_BACKLIGHT_INIT; // Set pin for turning tft backlight on and off.
 
   enableAllDisplays();
+
+  // HARDWARE_MIHOYO_CLOCK: non-standard SPI pins via GPIO matrix.
+  // WiFi init resets matrix routing, must re-init SPI afterwards.
+  #ifdef HARDWARE_MIHOYO_CLOCK
+  SPI.end();
+  SPI.begin(TFT_SCLK, TFT_MISO, TFT_MOSI, TFT_CS);
+  #endif
 }
 
 void TFTs::enableAllDisplays() {

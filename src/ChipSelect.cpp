@@ -1,6 +1,6 @@
 #include "ChipSelect.h"
 
-#if !defined(HARDWARE_IPSTube_CLOCK) && !defined(HARDWARE_IPSTube_DIM_CLOCK)
+#if !defined(HARDWARE_IPSTube_CLOCK) && !defined(HARDWARE_IPSTube_DIM_CLOCK) && !defined(HARDWARE_MIHOYO_CLOCK)
 void ChipSelect::begin() {
   pinMode(CSSR_LATCH_PIN, OUTPUT);
   pinMode(CSSR_DATA_PIN, OUTPUT);
@@ -20,21 +20,23 @@ void ChipSelect::update() {
   digitalWrite(CSSR_LATCH_PIN, HIGH);
 }
 #else
+// Direct CS pins for IPSTube and miHoYo
+#ifdef HARDWARE_MIHOYO_CLOCK
+// FPC Pin8 (reversed for correct L->R order): screen 1=15,2,27,14,12,13
 const int ChipSelect::lcdEnablePins[NUM_DIGITS] = {GPIO_NUM_15, GPIO_NUM_2, GPIO_NUM_27, GPIO_NUM_14, GPIO_NUM_12, GPIO_NUM_13};
+#else
+const int ChipSelect::lcdEnablePins[NUM_DIGITS] = {GPIO_NUM_15, GPIO_NUM_2, GPIO_NUM_27, GPIO_NUM_14, GPIO_NUM_12, GPIO_NUM_13};
+#endif
 
 void ChipSelect::begin() {
-  // Initialize all six different pins for the CS of each LCD as OUTPUT and set it to HIGH (disabled)
-  for (int i = 0; i < NUM_DIGITS; ++i)
-  {
+  for (int i = 0; i < NUM_DIGITS; ++i) {
     pinMode(lcdEnablePins[i], OUTPUT);
   }
-
   update();
 }
 
 void ChipSelect::update() {
-  for (int i = 0; i < NUM_DIGITS; i++)
-  {
+  for (int i = 0; i < NUM_DIGITS; i++) {
     digitalWrite(lcdEnablePins[i], (digits_map & (1 << i)) ? LOW : HIGH);
   }
 }

@@ -144,6 +144,8 @@ StringConfigItem hostName("hostname", 63, "novellifese");
 StringConfigItem hostName("hostname", 63, "sihai");
 #elif defined(HARDWARE_IPSTube_CLOCK) || defined (HARDWARE_IPSTube_DIM_CLOCK)
 StringConfigItem hostName("hostname", 63, "ipstube");
+#elif defined(HARDWARE_MIHOYO_CLOCK)
+	StringConfigItem hostName("hostname", 63, "mihoyo");
 #else
 StringConfigItem hostName("hostname", 63, "ipsclock");
 #endif

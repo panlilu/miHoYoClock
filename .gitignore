@@ -11,3 +11,5 @@ web/node_modules
 web/package-lock.json
 data/*.gz
 
+test_pins.sh
+web/bun.lock
