@@ -1,0 +1,66 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Install web deps
+        run: cd web && npm install
+
+      - name: Generate BTC icon
+        run: pip install Pillow && python3 scripts/generate_btc_icon.py
+
+      - name: Build firmware
+        run: pio run -e mihoyo
+
+      - name: Build filesystem
+        run: pio run -e mihoyo -t buildfs
+
+      - name: Prepare release artifacts
+        run: |
+          mkdir -p release
+          cp .pio/build/mihoyo/firmware.bin release/
+          cp .pio/build/mihoyo/bootloader.bin release/
+          cp .pio/build/mihoyo/partitions.bin release/
+          cp .pio/build/mihoyo/littlefs.bin release/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: release/
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: firmware
+          path: release/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release/*
+          generate_release_notes: true
