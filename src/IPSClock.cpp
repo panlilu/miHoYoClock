@@ -219,6 +219,60 @@ void IPSClock::loop() {
                 if (now.tm_sec % 10 == 0) {
                     tfts->setDigit(random(6), digitToName[random(10)], TFTs::yes);
                 }
+            } else if (getTimeOrDate().value == BITCOIN) {
+                tfts->setShowDigits(BITCOIN);
+                int price = (int)bitcoinPrice;
+                uint8_t digits[6];
+                uint8_t startDigit = 0;
+
+                if (price >= 100000) {
+                    // 6-digit price: show all 6 digits, no bitcoin icon
+                    for (int i = 5; i >= 0; i--) {
+                        digits[i] = price % 10;
+                        price /= 10;
+                    }
+                } else if (price >= 10000) {
+                    // 5-digit price: bitcoin icon in first tube, 5 digits
+                    digits[0] = 99; // special code for bitcoin icon
+                    for (int i = 5; i >= 1; i--) {
+                        digits[i] = price % 10;
+                        price /= 10;
+                    }
+                } else {
+                    // 4 or fewer digits: bitcoin icon, space, then digits
+                    digits[0] = 99; // bitcoin icon
+                    digits[1] = 99; // space
+                    int digitIdx = 5;
+                    int tempPrice = price;
+                    for (int i = 0; i < 4; i++) {
+                        digits[digitIdx--] = tempPrice % 10;
+                        tempPrice /= 10;
+                        if (tempPrice == 0 && i < 3) break;
+                    }
+                    // Fill remaining leading positions with space
+                    while (digitIdx >= 1) {
+                        digits[digitIdx--] = 99; // space
+                    }
+                }
+
+                uint8_t DIGITS[NUM_DIGITS] = {
+                    HOURS_TENS,
+                    HOURS_ONES,
+                    MINUTES_TENS,
+                    MINUTES_ONES,
+                    SECONDS_TENS,
+                    SECONDS_ONES
+                };
+
+                for (uint8_t i = 0; i < NUM_DIGITS; i++) {
+                    if (digits[i] == 99 && i == 0) {
+                        tfts->setDigit(DIGITS[i], "btc", TFTs::yes);
+                    } else if (digits[i] == 99) {
+                        tfts->setDigit(DIGITS[i], "space", TFTs::yes);
+                    } else {
+                        tfts->setDigit(DIGITS[i], digitToName[digits[i]], TFTs::yes);
+                    }
+                }
             } else {
                 Serial.println("Bad display state for clock");
             }

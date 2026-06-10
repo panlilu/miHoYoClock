@@ -14,7 +14,8 @@ public:
         TIME = 0,
         DATE,
         WEATHER,
-        SLIDE_SHOW
+        SLIDE_SHOW,
+        BITCOIN
     };
 
     enum Dimming {
@@ -63,6 +64,8 @@ public:
     void overrideUntilNextChange() { prevScheduleOn = clockOn(); temporaryOverride = true; }
     void setBrightness(byte brightness) { this->brightness = brightness; }
     uint8_t getBrightness() { return getDimming() == DIM && !clockOn() ? (brightness / 6) : brightness; }
+    void setBitcoinPrice(float price) { bitcoinPrice = price; }
+    float getBitcoinPrice() { return bitcoinPrice; }
 private:
     static IRAMPtrArray<const char*> digitToName;
 
@@ -74,6 +77,7 @@ private:
     unsigned long onOverride = 0;
     bool temporaryOverride = false;
     bool prevScheduleOn = false;
+    float bitcoinPrice = 0;
 };
 
 #endif

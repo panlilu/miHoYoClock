@@ -25,6 +25,7 @@
 #include "WSConfigHandler.h"
 #include "WSInfoHandler.h"
 #include "OpenWeatherMapWeatherService.h"
+#include "BitcoinService.h"
 #include "weather.h"
 #include "ScreenSaver.h"
 #include "mqttBroker.h"
@@ -84,6 +85,7 @@ Backlights *backlights = NULL;
 IPSClock *ipsClock = NULL;
 Weather *weather = NULL;
 WeatherService *weatherService = NULL;
+BitcoinService *bitcoinService = NULL;
 ImageUnpacker *imageUnpacker = NULL;
 
 ScreenSaver *screenSaver;
@@ -121,10 +123,12 @@ TaskHandle_t improvTask;
 TaskHandle_t ledTask;
 TaskHandle_t commitEEPROMTask;
 TaskHandle_t weatherTask;
+TaskHandle_t bitcoinTask;
 
 SemaphoreHandle_t wsMutex;
 SemaphoreHandle_t memMutex;
 QueueHandle_t weatherQueue;
+QueueHandle_t bitcoinQueue;
 QueueHandle_t mainQueue;
 
 AsyncWiFiManagerParameter *hostnameParam;
@@ -243,6 +247,13 @@ IRAMPtrArray<BaseConfigItem*> mqttSet {
 
 CompositeConfigItem mqttConfig("mqtt", 0, mqttSet);
 
+IRAMPtrArray<BaseConfigItem*> bitcoinSet {
+    &BitcoinService::getSource(),
+    &BitcoinService::getInterval(),
+    0
+};
+CompositeConfigItem bitcoinConfig("bitcoin", 0, bitcoinSet);
+
 // Global configuration
 IRAMPtrArray<BaseConfigItem*> configSetGlobal = {
 	&hostName,
@@ -260,6 +271,7 @@ IRAMPtrArray<BaseConfigItem*> configSetRoot {
 	&weatherConfig,
 	&matrixConfig,
 	&mqttConfig,
+	&bitcoinConfig,
 	0
 };
 
@@ -409,7 +421,7 @@ void onButtonEvent(const Button *button, Button::Event evt) {
 				// ... or switching display modes. This *is* the mode button after all
 				IntConfigItem &dateOrTime = IPSClock::getTimeOrDate();
 
-				dateOrTime.value = (dateOrTime.value + 1) % 4;
+				dateOrTime.value = (dateOrTime.value + 1) % 5;
 				dateOrTime.put();
 				broadcastUpdate(dateOrTime);
 				dateOrTime.notify();
@@ -430,7 +442,7 @@ void onButtonEvent(const Button *button, Button::Event evt) {
 		// If we only have the power button, it is more useful to cycle through the display modes
 		IntConfigItem &dateOrTime = IPSClock::getTimeOrDate();
 
-		dateOrTime.value = (dateOrTime.value + 1) % 4;
+		dateOrTime.value = (dateOrTime.value + 1) % 5;
 		dateOrTime.put();
 		broadcastUpdate(dateOrTime);
 		dateOrTime.notify();
@@ -477,6 +489,8 @@ void clockTaskFn(void *pArg) {
 	ipsClock->setTimeSync(timeSync);
 	ipsClock->getTimeOrDate().setCallback(onDisplayChanged);
 	ipsClock->getBrightnessConfig().setCallback(onBrightnessChanged);
+
+	bitcoinService = new BitcoinService();
 
 	*oldSlidesSet = slidesSet->value;
 
@@ -629,6 +643,27 @@ void weatherTaskFn(void *pArg) {
 	}
 }
 
+void bitcoinTaskFn(void *pArg) {
+	while (true) {
+		int interval = BitcoinService::getInterval().value;
+		if (interval < 10) interval = 10;
+
+		uint32_t value;
+		if (xQueueReceive(bitcoinQueue, &value, pdMS_TO_TICKS(interval * 1000)) == pdTRUE) {
+			while (xQueueReceive(bitcoinQueue, &value, 0) == pdTRUE);
+		}
+
+		if ((WiFi.status() == WL_CONNECTED) && !wifiManager->isAP()
+				&& IPSClock::getTimeOrDate().value == IPSClock::BITCOIN) {
+			xSemaphoreTake(memMutex, portMAX_DELAY);
+			if (bitcoinService->getPrice() && bitcoinService->getLastPrice() > 0) {
+				ipsClock->setBitcoinPrice(bitcoinService->getLastPrice());
+			}
+			xSemaphoreGive(memMutex);
+		}
+	}
+}
+
 String getChipId(void)
 {
   uint8_t macid[6];
@@ -652,6 +687,7 @@ IRAMPtrArray<const char*> items {
 	WSMenuHandler::mqttMenu,
 	WSMenuHandler::networkMenu,
 	WSMenuHandler::infoMenu,
+	WSMenuHandler::bitcoinMenu,
 	0
 };
 
@@ -663,6 +699,7 @@ WSConfigHandler wsWeatherHandler(rootConfig, "weather");
 WSConfigHandler wsMatrixHandler(rootConfig, "matrix");
 WSConfigHandler wsMqttHandler(rootConfig, "mqtt");
 WSConfigHandler wsNetworkHandler(rootConfig, "network", wifiCallback);
+WSConfigHandler wsBitcoinHandler(rootConfig, "bitcoin");
 WSInfoHandler wsInfoHandler(infoCallback);
 
 // Order of this needs to match the numbers in WSMenuHandler.cpp
@@ -676,6 +713,7 @@ IRAMPtrArray<WSHandler*> wsHandlers {
 	&wsNetworkHandler,
 	&wsWeatherHandler,
 	&wsMatrixHandler,
+	&wsBitcoinHandler,
 	NULL
 };
 
@@ -744,16 +782,18 @@ void updateValue(int screen, String pair) {
 	if (item != 0) {
 		item->fromString(value);
 		item->put();
-		// Order of below is important to maintain external consistency
+		config.commit();
 		broadcastUpdate(*item);
 		item->notify();
 		if (_key == "hostname") {
-			config.commit();
 			ESP.restart();
 		}
 	} else if (_key == "get_weather") {
 		uint32_t value = WEATHER_UPDATE;
 		xQueueSend(weatherQueue, &value, 0);
+	} else if (_key == "get_btc") {
+		uint32_t value = 1;
+		xQueueSend(bitcoinQueue, &value, 0);
 	} else if (_key == "wifi_ap") {
 		setWiFiAP(value == "true" ? true : false);
 	}
@@ -766,7 +806,7 @@ void handleWSMsg(AsyncWebSocketClient *client, char *data) {
 	String wholeMsg(data);
 	int code = wholeMsg.substring(0, wholeMsg.indexOf(':')).toInt();
 
-	if (code < 9) {
+	if (code < 10) {
 		if (code < wsHandlers.length()) {
 			if (wsHandlers[code] != NULL) {
 				wsHandlers[code]->handle(client, data);
@@ -1132,6 +1172,8 @@ void connectedHandler() {
 	if (!wifiManager->isAP()) {
 		uint32_t value = WEATHER_UPDATE;
 		xQueueSend(weatherQueue, &value, 0);	// May not work if AP is active
+		value = 1;
+		xQueueSend(bitcoinQueue, &value, 0);
 	}
 }
 
@@ -1144,6 +1186,8 @@ void apChange(AsyncWiFiManager *wifiManager) {
 		tfts->setStatus("AP Destroyed...");
 		uint32_t value = WEATHER_UPDATE;
 		xQueueSend(weatherQueue, &value, 0);	// Not enough memory to make an HTTPS request while AP is active
+		value = 1;
+		xQueueSend(bitcoinQueue, &value, 0);
 	}
 }
 
@@ -1190,6 +1234,7 @@ void setup() {
 	wsMutex = xSemaphoreCreateMutex();
 	memMutex = xSemaphoreCreateMutex();
     weatherQueue = xQueueCreate(5, sizeof(uint32_t));
+    bitcoinQueue = xQueueCreate(2, sizeof(uint32_t));
     mainQueue = xQueueCreate(5, sizeof(uint32_t));
 	tfts = new TFTs();
 
@@ -1315,6 +1360,16 @@ IPSClock::getTimeZone().setCallback(onTimezoneChanged);
 		NULL,  /* Task input parameter */
 		tskIDLE_PRIORITY,  /* More than background tasks */
 		&weatherTask,  /* Task handle. */
+		xPortGetCoreID()
+	);
+
+    xTaskCreatePinnedToCore(
+		bitcoinTaskFn, /* Function to implement the task */
+		"Bitcoin client task", /* Name of the task */
+		6144,  /* Stack size in words */
+		NULL,  /* Task input parameter */
+		tskIDLE_PRIORITY,  /* More than background tasks */
+		&bitcoinTask,  /* Task handle. */
 		xPortGetCoreID()
 	);
 

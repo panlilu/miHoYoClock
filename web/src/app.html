@@ -362,7 +362,7 @@
 				name = $(element).attr('name');
 			}
 
-			var msg = '9:' + pageId + ':' + name + ':' + value;
+			var msg = '10:' + pageId + ':' + name + ':' + value;
 			safeSend(msg);
 		}
 
@@ -478,7 +478,7 @@
 			} else if (fileSet == "slides") {
 				configName = ':slide_show:';
 			}
-			var msg = '9:' + pageId + configName + key;
+			var msg = '10:' + pageId + configName + key;
 			safeSend(msg);
 		}
 
@@ -616,7 +616,8 @@
 					case "sv.init.matrix":	// Received initialization object
 					case "sv.init.mqtt":	// Received initialization object
 					case "sv.init.network":	// Received initialization object
-					case "sv.init.info":	// Received initialization object
+					case "sv.init.info":
+					case "sv.init.bitcoin":
 						console.log(msg.type);
 						updateElements(msg.value);
 						break;
@@ -739,19 +740,19 @@
 						if (h != clockColor.h) {
 							clockColor.h = h;
 							var sliderId = fieldset.find(".hue").attr("id");
-							safeSend('9:' + pageId + ':' + sliderId + ':' + h);
+							safeSend('10:' + pageId + ':' + sliderId + ':' + h);
 						}
 
 						if (s != clockColor.s) {
 							clockColor.s = s;
 							var sliderId = fieldset.find(".saturation").attr("id");
-							safeSend('9:' + pageId + ':' + sliderId + ':' + s);
+							safeSend('10:' + pageId + ':' + sliderId + ':' + s);
 						}
 
 						if (v != clockColor.v) {
 							clockColor.v = v;
 							var sliderId = fieldset.find(".value").attr("id");
-							safeSend('9:' + pageId + ':' + sliderId + ':' + v);
+							safeSend('10:' + pageId + ':' + sliderId + ':' + v);
 						}
 					},
 				});
@@ -778,9 +779,9 @@
 
 					var values = e.value.split(',');
 					var pageId = getPageId($(".ui-page-active").attr("id"));
-					var msg = '9:' + pageId + ':display_on:' + values[0];
+					var msg = '10:' + pageId + ':display_on:' + values[0];
 					safeSend(msg);
-					msg = '9:' + pageId + ':display_off:' + values[1];
+					msg = '10:' + pageId + ':display_off:' + values[1];
 					safeSend(msg);
 				}
 			});

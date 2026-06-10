@@ -988,6 +988,8 @@ TFT_eSprite& TFTs::drawImage(uint8_t digit) {
     strcpy(filename, "/ips/weather_cache/");
   } else if (showDigits == IPSClock::SLIDE_SHOW) {
     strcpy(filename, "/ips/slides_cache/");
+  } else if (showDigits == IPSClock::BITCOIN && strcmp(icons[digit], "btc") == 0) {
+    strcpy(filename, "/ips/btc/");
   } else {
     strcpy(filename, "/ips/cache/");
   }
